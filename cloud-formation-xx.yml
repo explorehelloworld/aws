@@ -1,0 +1,54 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Highly Available Web Application'
+
+Resources:
+  WebAppSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Security group for the web application'
+      SecurityGroupIngress:
+        - CidrIp: '0.0.0.0/0'
+          IpProtocol: 'tcp'
+          FromPort: 80
+          ToPort: 80
+
+  WebAppLaunchConfig:
+    Type: 'AWS::AutoScaling::LaunchConfiguration'
+    Properties:
+      ImageId: 'ami-04ab94c703fb30109100'  # Replace with your desired AMI ID
+      InstanceType: 't2.micro'
+      SecurityGroups:
+        - !Ref WebAppSecurityGroup
+
+  WebAppAutoScalingGroup:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      LaunchConfigurationName: !Ref WebAppLaunchConfig
+      MinSize: 2
+      MaxSize: 4
+      DesiredCapacity: 2
+      VPCZoneIdentifier:
+        - 'subnet-0166d273718c42bemfxxxxx'  # Replace with your subnet ID in AZ 1
+
+  WebAppLoadBalancer:
+    Type: 'AWS::ElasticLoadBalancing::LoadBalancer'
+    Properties:
+      Subnets:
+        - 'subnet-0166d273718c42bemfxxxxx'  # Replace with your subnet ID in AZ 1
+
+      Listeners:
+        - LoadBalancerPort: 80
+          InstancePort: 80
+          Protocol: 'HTTP'
+      HealthCheck:
+        Target: 'HTTP:80/'
+        HealthyThreshold: '3'
+        UnhealthyThreshold: '5'
+        Interval: '30'
+        Timeout: '5'
+
+Outputs:
+  WebsiteURL:
+    Description: 'URL of the deployed web application'
+    Value: !Sub 'http://${WebAppLoadBalancer.DNSName}/'
